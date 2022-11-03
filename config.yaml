@@ -1,0 +1,6 @@
+rotate: 5
+all_config:
+  my_name:
+    rotate: 1
+    period: hourly
+    # size: 100k
