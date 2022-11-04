@@ -1,5 +1,5 @@
 
-use std::io::{self, Read};
+use std::io::{Read};
 use std::fs::File;
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
@@ -70,7 +70,6 @@ impl DataConfig {
     pub fn read_from_file(file: String) -> TrunResult<DataConfig>  {
         let mut f = File::open(file)?;
         let mut buffer = Vec::new();
-        // read the whole file
         f.read_to_end(&mut buffer)?;
         let file_data = String::from_utf8_lossy(&buffer);
         let mut field: DataConfig = serde_yaml::from_str(&file_data)?;
@@ -114,5 +113,53 @@ impl OneConfig {
         } else {
             1024.max(val * ratio)
         }
+    }
+
+    pub fn get_period_step(&self) -> i64  {
+        if self.period.is_none() {
+            return 3600;
+        }
+        let period = self.period.as_ref().unwrap();
+        match &**period {
+            "hour" => {
+                return 3600;
+            }
+            "daily" => {
+                return 86400;
+            }
+            "minute" => {
+                return 60;
+            }
+            "month" => {
+                return 86400 * 30;
+            }
+            _ => {
+                if period.contains("minute") {
+                    return period.replace("minute", "").parse::<i64>().unwrap_or(1) * 60;
+                }
+                if period.contains("hour") {
+                    return period.replace("hour", "").parse::<i64>().unwrap_or(1) * 3600;
+                }
+                if period.contains("daily") {
+                    return period.replace("daily", "").parse::<i64>().unwrap_or(1) * 86400;
+                }
+                if period.contains("month") {
+                    return period.replace("month", "").parse::<i64>().unwrap_or(1) * 86400 * 30;
+                }
+                if period.contains("mon") {
+                    return period.replace("m", "").parse::<i64>().unwrap_or(1) * 86400 * 30;
+                }
+                if period.contains("h") {
+                    return period.replace("h", "").parse::<i64>().unwrap_or(1) * 3600;
+                }
+                if period.contains("d") {
+                    return period.replace("d", "").parse::<i64>().unwrap_or(1) * 86400;
+                }
+                if period.contains("m") {
+                    return period.replace("mon", "").parse::<i64>().unwrap_or(1) * 60;
+                }
+            }
+        }
+        return 3600;
     }
 }
