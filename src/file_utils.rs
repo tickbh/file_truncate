@@ -48,7 +48,7 @@ pub fn get_all_path(root_path: &String) -> Result<Vec<(String, String)>, TrunErr
     let re = if !need_match {
         Regex::new(r"\**").unwrap()
     } else {
-        let info = root_path.replace("*", "([\\w\\._]+)");
+        let info = "^".to_string() + &root_path.replace("*", "([\\w\\._]+)") + "$";
         match Regex::new(&info) {
             Ok(reg) => {
                 reg
@@ -58,9 +58,9 @@ pub fn get_all_path(root_path: &String) -> Result<Vec<(String, String)>, TrunErr
                 return Ok(vec![]);
             }
         }
-        
     };
 
+    let export_re = Regex::new(r"^*\.\d+$").unwrap();
     println!("first = {:?}",first_path);
     let mut path_list = vec![String::from(first_path)];
     let mut result_list = vec![];
@@ -76,7 +76,7 @@ pub fn get_all_path(root_path: &String) -> Result<Vec<(String, String)>, TrunErr
             } else {
                 path = path.replace("\\", "/");
                 println!("path == {:?}", path);
-                if re.is_match(&path)  {
+                if re.is_match(&path) && !export_re.is_match(&path) {
                     result_list.push(split_path(&path));
                 }
             }

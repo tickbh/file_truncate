@@ -1,6 +1,11 @@
 rotate: 5
+dateext: "%Y_%m_%d"
 all_config:
-  my_name:
-    rotate: 1
+  D:/game/poker_server/log/*:
+    rotate: 5
     period: hourly
-    # size: 100k
+    size: 1k
+  D:/game/poker_server/log1/*.log:
+    rotate: 5
+    period: hourly
+    size: 1k
