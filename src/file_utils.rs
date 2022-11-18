@@ -1,5 +1,5 @@
-use std::ops::Range;
 use std::fs::{self, metadata, read_dir, File};
+use log::trace;
 use regex::Regex;
 
 use std::fs::OpenOptions;
@@ -54,7 +54,7 @@ pub fn get_all_path(root_path: &String) -> Result<Vec<(String, String)>, TrunErr
     let re = if !need_match {
         Regex::new(r"\**").unwrap()
     } else {
-        let info = "^".to_string() + &root_path.replace("*", "([\\w\\.-_]+)") + "$";
+        let info = "^".to_string() + &root_path.replace("*", "([\\w\\.\\-_]+)") + "$";
         match Regex::new(&info) {
             Ok(reg) => {
                 reg
@@ -73,16 +73,24 @@ pub fn get_all_path(root_path: &String) -> Result<Vec<(String, String)>, TrunErr
         let list_len = path_list.len();
         for index in start_index..path_list.len() {
             let mut path = path_list[index].to_string();
-            if metadata(&path)?.is_dir() {
-                for child_dir in read_dir(&path)? {
-                    path_list.push(String::from(child_dir?.path().as_os_str().to_str().expect("")));
+            match fs::metadata(&path) {
+                Ok(meta) => {
+                    if meta.is_dir() {
+                        for child_dir in read_dir(&path)? {
+                            path_list.push(String::from(child_dir?.path().as_os_str().to_str().expect("")));
+                        }
+                    } else {
+                        path = path.replace("\\", "/");
+                        if re.is_match(&path) && !export_re.is_match(&path) {
+                            result_list.push(split_path(&path));
+                        }
+                    }
                 }
-            } else {
-                path = path.replace("\\", "/");
-                if re.is_match(&path) && !export_re.is_match(&path) {
-                    result_list.push(split_path(&path));
+                Err(_) => {
+                    return Ok(vec![]);
                 }
             }
+
         }
         if list_len == start_index { break; }
         start_index = list_len;
@@ -129,7 +137,7 @@ pub fn do_oper_log_split(path: &(String, String), config: &OneConfig) -> TrunRes
         for idx in (0 .. rotate).rev() {
             let now_path = get_real_path(&(path.0.clone(), calc_path(path.1.clone(), config, idx)));
             let dest_path = get_real_path(&(path.0.clone(), calc_path(path.1.clone(), config, idx + need_offset)));
-            println!("rename now_path === {:?} dest_path = {:?}", now_path, dest_path);
+            trace!("重命名文件{:?}->{:?}", now_path, dest_path);
             let _ = fs::rename(now_path, dest_path);
             
         }
@@ -138,7 +146,9 @@ pub fn do_oper_log_split(path: &(String, String), config: &OneConfig) -> TrunRes
     let mut one_kb = [0u8; 1024];
     let mut log_file = OpenOptions::new().read(true).write(true).open(&real_path)?;
     for idx in start_step .. step - 1 {
+
         let dest_path = get_real_path(&(path.0.clone(), calc_path(path.1.clone(), config, idx - start_step)));
+        trace!("切割文件{:?}->{:?}", real_path, dest_path);
         let mut dest_file = File::create(dest_path)?;
         log_file.seek(SeekFrom::Start(idx * trun_size))?;
         let mut read_byte = trun_size as i64;

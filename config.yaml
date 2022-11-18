@@ -4,8 +4,4 @@ all_config:
   D:/game/poker_server/log/*:
     rotate: 5
     period: 1m
-    size: 1k
-  D:/game/poker_server/log1/*.log:
-    rotate: 5
-    period: hourly
-    size: 1k
+    size: 100k

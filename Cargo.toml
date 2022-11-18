@@ -11,4 +11,6 @@ serde_yaml="0.9"
 commander = "0.1"
 regex = "1.5"
 chrono = "0.4"
-forever-rs = { version = "0.1.1" }
+log4rs = "1.1.1"
+log = "0.4.17"
+forever-rs = { version = "0.1.2" }
