@@ -1,5 +1,5 @@
-use std::fs::{self, metadata, read_dir, File};
-use log::trace;
+use std::fs::{self, read_dir, File};
+use log::{trace,warn};
 use regex::Regex;
 
 use std::fs::OpenOptions;
@@ -77,7 +77,9 @@ pub fn get_all_path(root_path: &String) -> Result<Vec<(String, String)>, TrunErr
                 Ok(meta) => {
                     if meta.is_dir() {
                         for child_dir in read_dir(&path)? {
-                            path_list.push(String::from(child_dir?.path().as_os_str().to_str().expect("")));
+                            if let Some(path) = child_dir?.path().as_os_str().to_str() {
+                                path_list.push(String::from(path));
+                            }
                         }
                     } else {
                         path = path.replace("\\", "/");
@@ -143,21 +145,26 @@ pub fn do_oper_log_split(path: &(String, String), config: &OneConfig) -> TrunRes
         }
     }
     
-    let mut one_kb = [0u8; 1024];
+    let mut one_kb = [0u8; 102400];
     let mut log_file = OpenOptions::new().read(true).write(true).open(&real_path)?;
+    let file_len = log_file.metadata()?.len();
+    
     for idx in start_step .. step - 1 {
 
         let dest_path = get_real_path(&(path.0.clone(), calc_path(path.1.clone(), config, idx - start_step)));
         trace!("切割文件{:?}->{:?}", real_path, dest_path);
         let mut dest_file = File::create(dest_path)?;
-        log_file.seek(SeekFrom::Start(idx * trun_size))?;
+        if let Err(_err) = log_file.seek(SeekFrom::Start(idx * trun_size)) {
+            warn!("定位文件位置异常 {:?}:{:?}", real_path, idx * trun_size);
+            continue;
+        }
         let mut read_byte = trun_size as i64;
         while read_byte > 0 {
             match log_file.read(&mut one_kb) {
                 Ok(size) => {
                     let _ = dest_file.write(&one_kb[..size]);
                     read_byte -= size as i64;
-                    if size < 1024 {
+                    if size < one_kb.len() {
                         break;
                     }
                 }
@@ -170,14 +177,19 @@ pub fn do_oper_log_split(path: &(String, String), config: &OneConfig) -> TrunRes
 
     log_file.seek(SeekFrom::Start(0))?;
     let mut clone_log_file = OpenOptions::new().read(true).open(&real_path)?;
-    clone_log_file.seek(SeekFrom::Start((step - 1) * trun_size))?;
+
+    let offset = file_len % trun_size;
+    if let Err(_err) = clone_log_file.seek(SeekFrom::Start(file_len - offset)) {
+        warn!("自删除, 定位文件位置异常 {:?}:{:?}", real_path, (step - 1) * trun_size);
+        return Ok(());
+    }
     let mut real_size = 0 as i64;
     loop {
         match clone_log_file.read(&mut one_kb) {
             Ok(size) => {
                 let _ = log_file.write(&one_kb[..size]);
                 real_size += size as i64;
-                if size < 1024 {
+                if size < one_kb.len() || real_size > trun_size as i64 {
                     break;
                 }
             }

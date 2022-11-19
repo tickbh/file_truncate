@@ -45,7 +45,7 @@ fn init_log4rs() {
             .appender("requests")
             .additive(false)
             .build("app::requests", LevelFilter::Trace))
-        .build(Root::builder().appender("stdout").appender("requests").build(LevelFilter::Trace))
+        .build(Root::builder().appender("requests").build(LevelFilter::Trace))
         .unwrap();
 
     let _handle = log4rs::init_config(config).unwrap();
