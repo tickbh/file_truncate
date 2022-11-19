@@ -58,6 +58,7 @@ fn sub_main() -> TrunResult<()> {
     .usage("file_truncate")
     .usage_desc("日志切割工具")
     .option_str("-c, --config [value]", "config data ", Some("config.yaml".to_string()))
+    .option("-o, --one [value]", "one data ", Some(false))
     .parse_env_or_exit()
     ;
 
@@ -65,6 +66,7 @@ fn sub_main() -> TrunResult<()> {
     trace!("分割文件程序启动");
 
     let config = DataConfig::read_from_file(command.get_str("c").unwrap())?;
+    let is_only_one = command.get("o").unwrap();
     let mut last_update_times = HashMap::new();
     for data in &config.all_config {
         last_update_times.insert(data.0.clone(), 0i64);
@@ -73,8 +75,12 @@ fn sub_main() -> TrunResult<()> {
         trace!("处理程序处理中");
         do_repeat_check_file(&config, &mut last_update_times)?;
         trace!("处理程序休眠中,等待下次重试");
+        if is_only_one {
+            break;
+        }
         ::std::thread::sleep(::std::time::Duration::from_millis(10000));
     }
+    Ok(())
 }
 
 #[forever_rs::main]
